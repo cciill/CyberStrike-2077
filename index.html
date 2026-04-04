@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberStrike 2077 - 赛博突击2077</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-pink: #ff00ff;
+            --neon-purple: #b829dd;
+            --dark-bg: #0a0a0f;
+            --panel-bg: rgba(10, 10, 15, 0.95);
+            --grid-color: rgba(0, 240, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--dark-bg);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* 背景网格动画 */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            perspective: 500px;
+            transform-style: preserve-3d;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translateY(0) rotateX(60deg); }
+            100% { transform: translateY(50px) rotateX(60deg); }
+        }
+
+        /* 游戏画布 */
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: none;
+        }
+
+        /* 主菜单 */
+        #mainMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at center, rgba(184, 41, 221, 0.15) 0%, transparent 70%);
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        #mainMenu.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
+            margin-bottom: 0.5rem;
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+            letter-spacing: 0.3em;
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-width: 300px;
+        }
+
+        .menu-btn {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 1rem 2rem;
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+        }
+
+        .menu-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .menu-btn:hover {
+            background: var(--neon-cyan);
+            color: var(--dark-bg);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
+        }
+
+        .menu-btn:hover::before {
+            left: 100%;
+        }
+
+        .menu-btn.primary {
+            background: var(--neon-cyan);
+            color: var(--dark-bg);
+        }
+
+        .menu-btn.primary:hover {
+            background: #fff;
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.8);
+        }
+
+        /* HUD 界面 */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            z-index: 50;
+        }
+
+        #hud.active {
+            display: block;
+        }
+
+        /* 准星 */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            height: 24px;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 24px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .crosshair-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--neon-pink);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px var(--neon-pink);
+        }
+
+        /* 生命值和护甲 */
+        .health-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .bar-container {
+            width: 250px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--neon-cyan);
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+        }
+
+        .bar-fill {
+            height: 100%;
+            transition: width 0.2s ease;
+            position: relative;
+        }
+
+        .health-fill {
+            background: linear-gradient(90deg, #ff3333, #ff6666);
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+        }
+
+        .armor-fill {
+            background: linear-gradient(90deg, var(--neon-cyan), #66f0ff);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .bar-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            color: var(--neon-cyan);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* 弹药显示 */
+        .ammo-display {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            text-align: right;
+        }
+
+        .ammo-count {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+            line-height: 1;
+        }
+
+        .ammo-reserve {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        .weapon-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            color: var(--neon-pink);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 5px;
+        }
+
+        /* 武器栏 */
+        .weapon-bar {
+            position: absolute;
+            bottom: 100px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .weapon-slot {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #333;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            color: #666;
+            transition: all 0.2s ease;
+        }
+
+        .weapon-slot.active {
+            border-color: var(--neon-cyan);
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+
+        .weapon-slot-number {
+            font-size: 0.6rem;
+            margin-bottom: 2px;
+        }
+
+        /* 小地图 */
+        .minimap {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            width: 180px;
+            height: 180px;
+            border: 2px solid var(--neon-cyan);
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .minimap-content {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .minimap-player {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .minimap-direction {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 10px solid var(--neon-cyan);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -100%);
+            transform-origin: bottom center;
+        }
+
+        /* 击杀提示 */
+        .kill-feed {
+            position: absolute;
+            top: 100px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: flex-end;
+        }
+
+        .kill-entry {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            padding: 5px 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border-right: 3px solid var(--neon-pink);
+            animation: killEntry 3s ease forwards;
+        }
+
+        @keyframes killEntry {
+            0% { opacity: 0; transform: translateX(20px); }
+            10% { opacity: 1; transform: translateX(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .kill-entry .killer {
+            color: var(--neon-cyan);
+        }
+
+        .kill-entry .victim {
+            color: #ff6666;
+        }
+
+        /* 分数板 */
+        .score-board {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .score-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* 消息提示 */
+        .game-messages {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .message {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+            animation: messagePop 2s ease forwards;
+            margin-bottom: 10px;
+        }
+
+        @keyframes messagePop {
+            0% { opacity: 0; transform: scale(0.5); }
+            20% { opacity: 1; transform: scale(1.1); }
+            30% { transform: scale(1); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* 暂停菜单 */
+        #pauseMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            backdrop-filter: blur(5px);
+        }
+
+        #pauseMenu.active {
+            display: flex;
+        }
+
+        .pause-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            color: var(--neon-cyan);
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        /* 加载画面 */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+
+        #loadingScreen.hidden {
+            display: none;
+        }
+
+        .loading-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+            margin-bottom: 2rem;
+            letter-spacing: 0.2em;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 4px;
+            background: #333;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        .loading-percentage {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--neon-cyan);
+            margin-top: 1rem;
+        }
+
+        /* 伤害指示器 */
+        .damage-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .damage-indicator.active {
+            opacity: 1;
+        }
+
+        .damage-indicator::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(255, 0, 0, 0.3) 100%);
+        }
+
+        /* 击杀确认 */
+        .hit-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        .hit-marker.active {
+            animation: hitMarker 0.2s ease;
+        }
+
+        @keyframes hitMarker {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .hit-marker::before,
+        .hit-marker::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-pink);
+        }
+
+        .hit-marker::before {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        .hit-marker::after {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 3rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .menu-buttons {
+                min-width: 250px;
+            }
+            
+            .ammo-count {
+                font-size: 2rem;
+            }
+            
+            .minimap {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景网格 -->
+    <div class="bg-grid"></div>
+
+    <!-- 游戏画布 -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- 加载画面 -->
+    <div id="loadingScreen">
+        <div class="loading-text">INITIALIZING SYSTEM...</div>
+        <div class="loading-bar">
+            <div class="loading-progress" id="loadingProgress"></div>
+        </div>
+        <div class="loading-percentage" id="loadingPercentage">0%</div>
+    </div>
+
+    <!-- 主菜单 -->
+    <div id="mainMenu">
+        <h1 class="logo">CyberStrike</h1>
+        <div class="subtitle">2077</div>
+        <div class="menu-buttons">
+            <button class="menu-btn primary" onclick="startCampaign()">战役模式</button>
+            <button class="menu-btn" onclick="startSurvival()">生存模式</button>
+            <button class="menu-btn" onclick="startMultiplayer()">多人对战</button>
+            <button class="menu-btn" onclick="openSettings()">设置</button>
+            <button class="menu-btn" onclick="showCredits()">制作人员</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <!-- 准星 -->
+        <div class="crosshair">
+            <div class="crosshair-dot"></div>
+        </div>
+
+        <!-- 击杀确认 -->
+        <div class="hit-marker" id="hitMarker"></div>
+
+        <!-- 伤害指示 -->
+        <div class="damage-indicator" id="damageIndicator"></div>
+
+        <!-- 生命值和护甲 -->
+        <div class="health-bar">
+            <div>
+                <div class="bar-label">Health</div>
+                <div class="bar-container">
+                    <div class="bar-fill health-fill" id="healthFill" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div>
+                <div class="bar-label">Armor</div>
+                <div class="bar-container">
+                    <div class="bar-fill armor-fill" id="armorFill" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 弹药 -->
+        <div class="ammo-display">
+            <div class="weapon-name" id="weaponName">AR-2077 突击步枪</div>
+            <div class="ammo-count">
+                <span id="ammoCurrent">30</span><span class="ammo-reserve"> / <span id="ammoReserve">120</span></span>
+            </div>
+        </div>
+
+        <!-- 武器栏 -->
+        <div class="weapon-bar">
+            <div class="weapon-slot active" data-weapon="1">
+                <span class="weapon-slot-number">1</span>
+                <span>AR</span>
+            </div>
+            <div class="weapon-slot" data-weapon="2">
+                <span class="weapon-slot-number">2</span>
+                <span>SG</span>
+            </div>
+            <div class="weapon-slot" data-weapon="3">
+                <span class="weapon-slot-number">3</span>
+                <span>SR</span>
+            </div>
+            <div class="weapon-slot" data-weapon="4">
+                <span class="weapon-slot-number">4</span>
+                <span>RL</span>
+            </div>
+            <div class="weapon-slot" data-weapon="5">
+                <span class="weapon-slot-number">5</span>
+                <span>HG</span>
+            </div>
+        </div>
+
+        <!-- 小地图 -->
+        <div class="minimap">
+            <div class="minimap-content">
+                <div class="minimap-player"></div>
+                <div class="minimap-direction" id="minimapDirection"></div>
+            </div>
+        </div>
+
+        <!-- 击杀提示 -->
+        <div class="kill-feed" id="killFeed"></div>
+
+        <!-- 分数板 -->
+        <div class="score-board">
+            <div class="score-item">
+                <span class="score-label">Kills</span>
+                <span class="score-value" id="scoreKills">0</span>
+            </div>
+            <div class="score-item">
+                <span class="score-label">Score</span>
+                <span class="score-value" id="scoreValue">0</span>
+            </div>
+            <div class="score-item">
+                <span class="score-label">Wave</span>
+                <span class="score-value" id="waveNumber">1</span>
+            </div>
+        </div>
+
+        <!-- 游戏消息 -->
+        <div class="game-messages" id="gameMessages"></div>
+    </div>
+
+    <!-- 暂停菜单 -->
+    <div id="pauseMenu">
+        <h2 class="pause-title">PAUSED</h2>
+        <div class="menu-buttons">
+            <button class="menu-btn primary" onclick="resumeGame()">继续游戏</button>
+            <button class="menu-btn" onclick="openSettings()">设置</button>
+            <button class="menu-btn" onclick="returnToMenu()">返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 游戏脚本 -->
+    <script src="src/core/GameEngine.js"></script>
+    <script src="src/core/Renderer.js"></script>
+    <script src="src/core/Physics.js"></script>
+    <script src="src/core/Audio.js"></script>
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Enemy.js"></script>
+    <script src="src/entities/Weapon.js"></script>
+    <script src="src/entities/Projectile.js"></script>
+    <script src="src/ai/BehaviorTree.js"></script>
+    <script src="src/ai/Pathfinding.js"></script>
+    <script src="src/weapons/WeaponBase.js"></script>
+    <script src="src/weapons/AssaultRifle.js"></script>
+    <script src="src/weapons/Shotgun.js"></script>
+    <script src="src/weapons/SniperRifle.js"></script>
+    <script src="src/weapons/RocketLauncher.js"></script>
+    <script src="src/weapons/Pistol.js"></script>
+    <script src="src/levels/LevelManager.js"></script>
+    <script src="src/levels/MapGenerator.js"></script>
+    <script src="src/effects/Particles.js"></script>
+    <script src="src/effects/PostProcessing.js"></script>
+    <script src="src/ui/HUD.js"></script>
+    <script src="src/utils/MathUtils.js"></script>
+    <script src="src/utils/InputHandler.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>
